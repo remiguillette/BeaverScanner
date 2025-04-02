@@ -3,14 +3,16 @@ import Webcam from "react-webcam";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Camera, Settings } from "lucide-react";
+import { Camera, Settings, AlertTriangle, Info } from "lucide-react";
 import { usePlateContext } from "@/contexts/PlateContext";
 import { apiRequest } from "@/lib/queryClient";
 import { LicensePlate } from "@shared/schema";
+import { Progress } from "@/components/ui/progress";
 
 // Type pour la réponse de l'API de détection
 type ScanResponse = {
   detected: boolean;
+  confidence?: number;
 } & Partial<LicensePlate>;
 
 export default function Scanner() {
@@ -18,6 +20,7 @@ export default function Scanner() {
   const webcamRef = useRef<Webcam>(null);
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<string | undefined>(undefined);
+  const [lastConfidence, setLastConfidence] = useState<number | null>(null);
   const { currentPlate, plateStatus, soundEnabled, webSocketConnected, toggleSound } = usePlateContext();
   
   // Get list of available cameras
@@ -50,6 +53,7 @@ export default function Scanner() {
   // État pour suivre le temps écoulé depuis la dernière plaque détectée
   const [lastDetectionTime, setLastDetectionTime] = useState<number | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [scanCount, setScanCount] = useState(0);
   
   // Fonction pour capturer les images et les envoyer au serveur pour traitement
   useEffect(() => {
@@ -63,9 +67,15 @@ export default function Scanner() {
         const imageSrc = webcamRef.current?.getScreenshot();
         if (imageSrc) {
           setIsProcessing(true);
+          setScanCount(prev => prev + 1);
           try {
             // Envoyer l'image au serveur pour traitement
             const response = await apiRequest<ScanResponse>("POST", "/api/scan", { image: imageSrc });
+            
+            // Mise à jour de la confiance de la détection
+            if (response && response.confidence !== undefined) {
+              setLastConfidence(response.confidence);
+            }
             
             // Si une plaque a été détectée, mettre à jour le temps de dernière détection
             if (response && response.detected === true) {
@@ -142,7 +152,21 @@ export default function Scanner() {
           {isScannerActive && isProcessing && (
             <div className="absolute top-4 right-4 bg-background/80 p-2 rounded text-sm flex items-center">
               <div className="h-3 w-3 rounded-full bg-blue-500 animate-pulse mr-2"></div>
-              <span>Recherche de plaque...</span>
+              <span>Analyse d'image en cours...</span>
+            </div>
+          )}
+          
+          {/* Confidence meter */}
+          {isScannerActive && lastConfidence !== null && (
+            <div className="absolute top-4 left-4 bg-background/80 p-2 rounded text-sm flex flex-col w-48">
+              <div className="flex justify-between mb-1">
+                <span>Confiance</span>
+                <span>{Math.round(lastConfidence * 100)}%</span>
+              </div>
+              <Progress 
+                value={lastConfidence * 100} 
+                className={`h-2 ${lastConfidence > 0.8 ? "text-green-500" : lastConfidence > 0.7 ? "text-yellow-500" : "text-red-500"}`}
+              />
             </div>
           )}
           
@@ -157,7 +181,7 @@ export default function Scanner() {
                     plateStatus === 'expired' ? 'bg-orange-500/20 text-orange-500' :
                     plateStatus === 'suspended' ? 'bg-red-500/20 text-red-500' :
                     'bg-gray-500/20 text-gray-500'
-                  }`}>
+                  } px-2 py-1 rounded flex items-center`}>
                     <span className={`h-2 w-2 rounded-full mr-1 ${
                       plateStatus === 'valid' ? 'bg-green-500' :
                       plateStatus === 'expired' ? 'bg-orange-500' :
@@ -174,6 +198,21 @@ export default function Scanner() {
                   Aucune plaque détectée. Veuillez pointer la caméra vers une plaque d'immatriculation.
                 </div>
               )}
+            </div>
+          )}
+          
+          {/* System messages */}
+          {!webSocketConnected && isScannerActive && (
+            <div className="absolute top-1/2 left-0 right-0 mx-auto bg-red-500/80 p-2 text-white text-center text-sm flex items-center justify-center">
+              <AlertTriangle className="h-4 w-4 mr-2" />
+              Connexion au serveur perdue. Tentative de reconnexion...
+            </div>
+          )}
+          
+          {/* Scan stats */}
+          {isScannerActive && (
+            <div className="absolute top-16 left-4 bg-background/60 px-2 py-1 rounded text-xs">
+              <Info className="h-3 w-3 inline mr-1" /> Images analysées: {scanCount}
             </div>
           )}
         </div>

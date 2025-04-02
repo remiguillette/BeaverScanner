@@ -5,6 +5,7 @@ import { storage } from "./storage";
 import { setupWebSocketServer } from "./websocket";
 import { insertLicensePlateSchema, plateStatusSchema } from "@shared/schema";
 import { z } from "zod";
+import { recognizeLicensePlate } from "./plate-recognition";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -32,42 +33,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Image data is required" });
       }
       
-      // Vérifiez si une vraie plaque est présente dans l'image
-      // Pour cette démo, nous allons simuler une détection aléatoire avec 20% de chance de détecter une plaque
-      const hasPlate = Math.random() < 0.2;
+      // Utiliser le module de reconnaissance de plaque d'immatriculation
+      const recognitionResult = await recognizeLicensePlate(image);
       
-      if (!hasPlate) {
+      if (!recognitionResult.detected) {
         // Si aucune plaque n'est détectée, renvoyer un objet vide
         return res.json({ detected: false });
       }
       
-      // Si une plaque est détectée, générer un numéro de plaque simulé
-      const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-      const numbers = "0123456789";
-      
-      let plateNumber = "";
-      for (let i = 0; i < 3; i++) {
-        plateNumber += letters[Math.floor(Math.random() * letters.length)];
-      }
-      plateNumber += "-";
-      for (let i = 0; i < 3; i++) {
-        plateNumber += numbers[Math.floor(Math.random() * numbers.length)];
-      }
-      
-      // Simuler la validation avec un statut aléatoire
-      const statuses = ["valid", "expired", "suspended", "other"];
-      const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
-      
       // Enregistrer la plaque détectée dans la base de données
       const newPlate = await storage.createLicensePlate({
-        plateNumber,
-        region: "Québec",
-        status: randomStatus,
+        plateNumber: recognitionResult.plateNumber!,
+        region: recognitionResult.region || "Inconnu",
+        status: recognitionResult.status || "other",
         detectionType: "automatic",
-        details: randomStatus === "valid" ? "Plaque en règle" : 
-                randomStatus === "expired" ? "La plaque a expiré" :
-                randomStatus === "suspended" ? "La plaque est suspendue" : 
-                "Information non disponible"
+        details: recognitionResult.details || "Information non disponible"
       });
       
       // Diffuser la détection à tous les clients WebSocket connectés
@@ -82,7 +62,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({
         detected: true,
-        ...newPlate
+        ...newPlate,
+        confidence: recognitionResult.confidence
       });
     } catch (error) {
       console.error("Error processing scan:", error);
@@ -95,19 +76,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate request with Zod schema
       const plateData = insertLicensePlateSchema.parse(req.body);
       
-      // In a real implementation, we would validate against an external database
-      // For this demo, we'll simulate validation with a random status
-      const statuses = ["valid", "expired", "suspended", "other"];
-      const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
+      // Valider la plaque d'immatriculation saisie manuellement
+      // La logique est similaire à celle dans plate-recognition.ts mais pour les saisies manuelles
+      const plateNumber = plateData.plateNumber;
+      
+      // Extraire le dernier caractère pour déterminer le statut (pour la démo)
+      const lastChar = plateNumber.charAt(plateNumber.length - 1);
+      const lastDigit = parseInt(lastChar, 10);
+      
+      let status: string;
+      let details: string;
+      
+      // Utiliser le dernier chiffre pour déterminer le statut (pour la démo seulement)
+      if (isNaN(lastDigit)) {
+        // Si le dernier caractère n'est pas un chiffre
+        status = "other";
+        details = "Information non disponible";
+      } else if (lastDigit >= 7) {
+        status = "valid";
+        details = "Plaque en règle";
+      } else if (lastDigit >= 4) {
+        status = "expired";
+        details = "La plaque a expiré";
+      } else if (lastDigit >= 2) {
+        status = "suspended";
+        details = "La plaque est suspendue";
+      } else {
+        status = "other";
+        details = "Information non disponible";
+      }
       
       // Save the validated plate to the database
       const newPlate = await storage.createLicensePlate({
         ...plateData,
-        status: randomStatus,
-        details: randomStatus === "valid" ? "Plaque en règle" : 
-                randomStatus === "expired" ? "La plaque a expiré" :
-                randomStatus === "suspended" ? "La plaque est suspendue" : 
-                "Information non disponible"
+        status: status as any,
+        details: details
       });
       
       // Broadcast the validation to all connected WebSocket clients
