@@ -70,15 +70,15 @@ export async function recognizePlateWithAPI(imageBase64: string): Promise<{
       },
       body: JSON.stringify({
         image_base64: base64Data,
-        regions: ['fr', 'ca', 'qc', 'us'],  // Focus sur les régions françaises, canadiennes et américaines
+        regions: ['fr', 'ca-on', 'ca-qc', 'us'],  // Codes corrects pour France, Ontario, Québec et USA
         config: {
           mode: 'fast',
           detection_mode: 'vehicle',
           region_config: {
-            fr: { confidence_threshold: 0.7 },
-            ca: { confidence_threshold: 0.7 },
-            qc: { confidence_threshold: 0.7 },
-            us: { confidence_threshold: 0.7 }
+            'fr': { confidence_threshold: 0.7 },
+            'ca-on': { confidence_threshold: 0.7 },
+            'ca-qc': { confidence_threshold: 0.7 },
+            'us': { confidence_threshold: 0.7 }
           }
         }
       })
@@ -115,7 +115,11 @@ export async function recognizePlateWithAPI(imageBase64: string): Promise<{
     let region = 'Inconnu';
     if (regionCode.includes('fr')) {
       region = 'France';
-    } else if (regionCode.includes('ca') || regionCode.includes('qc')) {
+    } else if (regionCode === 'ca-on') {
+      region = 'Ontario';
+    } else if (regionCode === 'ca-qc') {
+      region = 'Québec';
+    } else if (regionCode.includes('ca')) {
       region = 'Canada';
     } else if (regionCode.includes('us')) {
       region = 'États-Unis';
@@ -176,12 +180,12 @@ export function validatePlateStatus(plateNumber: string): PlateStatus {
 export function getStatusDetails(status: PlateStatus): string {
   switch (status) {
     case "valid":
-      return "Plaque en règle";
+      return "Plaque en règle - Véhicule standard";
     case "expired":
-      return "La plaque a expiré";
+      return "La plaque a expiré - Renouvellement requis";
     case "suspended":
-      return "La plaque est suspendue";
+      return "La plaque est suspendue - Consulter les autorités";
     default:
-      return "Information non disponible";
+      return "Information non disponible - Statut indéterminé";
   }
 }
