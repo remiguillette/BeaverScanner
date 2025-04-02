@@ -21,8 +21,13 @@ export default function Scanner() {
         const devices = await navigator.mediaDevices.enumerateDevices();
         const videoDevices = devices.filter(device => device.kind === "videoinput");
         setAvailableCameras(videoDevices);
-        if (videoDevices.length > 0) {
-          setSelectedCamera(videoDevices[0].deviceId);
+        // Sélectionner la première caméra avec un deviceId valide
+        const validCamera = videoDevices.find(device => device.deviceId && device.deviceId !== "");
+        if (validCamera) {
+          setSelectedCamera(validCamera.deviceId);
+        } else {
+          // Si aucune caméra valide n'est trouvée, utiliser une valeur par défaut
+          setSelectedCamera("default");
         }
       } catch (error) {
         console.error("Error accessing camera devices:", error);
@@ -64,7 +69,9 @@ export default function Scanner() {
     width: 1280,
     height: 720,
     facingMode: "environment",
-    deviceId: selectedCamera ? { exact: selectedCamera } : undefined
+    deviceId: selectedCamera && selectedCamera !== "default" 
+      ? { exact: selectedCamera } 
+      : undefined
   };
 
   return (
@@ -164,11 +171,16 @@ export default function Scanner() {
                 <SelectValue placeholder="Caméra par défaut" />
               </SelectTrigger>
               <SelectContent>
-                {availableCameras.map((camera) => (
-                  <SelectItem key={camera.deviceId} value={camera.deviceId}>
-                    {camera.label || `Caméra ${availableCameras.indexOf(camera) + 1}`}
-                  </SelectItem>
-                ))}
+                {availableCameras
+                  .filter(camera => camera.deviceId && camera.deviceId !== "") // Filtrer les caméras sans deviceId
+                  .map((camera) => (
+                    <SelectItem key={camera.deviceId} value={camera.deviceId}>
+                      {camera.label || `Caméra ${availableCameras.indexOf(camera) + 1}`}
+                    </SelectItem>
+                  ))}
+                  {availableCameras.length === 0 && (
+                    <SelectItem value="default">Caméra par défaut</SelectItem>
+                  )}
               </SelectContent>
             </Select>
           </div>
