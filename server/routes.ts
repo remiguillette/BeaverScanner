@@ -32,8 +32,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Image data is required" });
       }
       
-      // In a real implementation, we would use ALPR to recognize the plate
-      // For this demo, we'll simulate a detection with a random plate number
+      // Vérifiez si une vraie plaque est présente dans l'image
+      // Pour cette démo, nous allons simuler une détection aléatoire avec 20% de chance de détecter une plaque
+      const hasPlate = Math.random() < 0.2;
+      
+      if (!hasPlate) {
+        // Si aucune plaque n'est détectée, renvoyer un objet vide
+        return res.json({ detected: false });
+      }
+      
+      // Si une plaque est détectée, générer un numéro de plaque simulé
       const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
       const numbers = "0123456789";
       
@@ -46,11 +54,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         plateNumber += numbers[Math.floor(Math.random() * numbers.length)];
       }
       
-      // Simulate validation with random status
+      // Simuler la validation avec un statut aléatoire
       const statuses = ["valid", "expired", "suspended", "other"];
       const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
       
-      // Save the detected plate to the database
+      // Enregistrer la plaque détectée dans la base de données
       const newPlate = await storage.createLicensePlate({
         plateNumber,
         region: "Québec",
@@ -62,7 +70,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 "Information non disponible"
       });
       
-      // Broadcast the detection to all connected WebSocket clients
+      // Diffuser la détection à tous les clients WebSocket connectés
       wss.clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
           client.send(JSON.stringify({
@@ -72,7 +80,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
       
-      res.json(newPlate);
+      res.json({
+        detected: true,
+        ...newPlate
+      });
     } catch (error) {
       console.error("Error processing scan:", error);
       res.status(500).json({ error: "Failed to process scan" });

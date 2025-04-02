@@ -6,6 +6,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Camera, Settings } from "lucide-react";
 import { usePlateContext } from "@/contexts/PlateContext";
 import { apiRequest } from "@/lib/queryClient";
+import { LicensePlate } from "@shared/schema";
+
+// Type pour la réponse de l'API de détection
+type ScanResponse = {
+  detected: boolean;
+} & Partial<LicensePlate>;
 
 export default function Scanner() {
   const [isScannerActive, setIsScannerActive] = useState(false);
@@ -41,20 +47,40 @@ export default function Scanner() {
     setIsScannerActive(!isScannerActive);
   };
   
-  // Function to capture frames and send to the server for ALPR
+  // État pour suivre le temps écoulé depuis la dernière plaque détectée
+  const [lastDetectionTime, setLastDetectionTime] = useState<number | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Fonction pour capturer les images et les envoyer au serveur pour traitement
   useEffect(() => {
     let captureInterval: NodeJS.Timeout | null = null;
     
     if (isScannerActive && webcamRef.current && webSocketConnected) {
-      captureInterval = setInterval(() => {
+      captureInterval = setInterval(async () => {
+        // Si déjà en cours de traitement, sauter cette capture
+        if (isProcessing) return;
+        
         const imageSrc = webcamRef.current?.getScreenshot();
         if (imageSrc) {
-          // Send image to server for ALPR processing via REST API
-          // The WebSocket will receive the results back
-          apiRequest("POST", "/api/scan", { image: imageSrc })
-            .catch(error => console.error("Error sending image for ALPR:", error));
+          setIsProcessing(true);
+          try {
+            // Envoyer l'image au serveur pour traitement
+            const response = await apiRequest<ScanResponse>("POST", "/api/scan", { image: imageSrc });
+            
+            // Si une plaque a été détectée, mettre à jour le temps de dernière détection
+            if (response && response.detected === true) {
+              setLastDetectionTime(Date.now());
+            } else if (response && response.detected === false) {
+              // Si aucune plaque n'est détectée, on peut éventuellement effacer la plaque actuelle
+              // Mais on choisit de laisser la dernière plaque affichée pour l'expérience utilisateur
+            }
+          } catch (error) {
+            console.error("Erreur lors de l'envoi de l'image:", error);
+          } finally {
+            setIsProcessing(false);
+          }
         }
-      }, 2000); // Capture every 2 seconds
+      }, 2000); // Capture toutes les 2 secondes
     }
     
     return () => {
@@ -62,7 +88,7 @@ export default function Scanner() {
         clearInterval(captureInterval);
       }
     };
-  }, [isScannerActive, webcamRef, webSocketConnected]);
+  }, [isScannerActive, webcamRef, webSocketConnected, isProcessing]);
   
   // Video constraints
   const videoConstraints = {
@@ -112,26 +138,42 @@ export default function Scanner() {
             </div>
           </div>
           
+          {/* Processing indicator */}
+          {isScannerActive && isProcessing && (
+            <div className="absolute top-4 right-4 bg-background/80 p-2 rounded text-sm flex items-center">
+              <div className="h-3 w-3 rounded-full bg-blue-500 animate-pulse mr-2"></div>
+              <span>Recherche de plaque...</span>
+            </div>
+          )}
+          
           {/* License plate detection overlay */}
-          {currentPlate && isScannerActive && (
+          {isScannerActive && (
             <div className="absolute bottom-4 left-4 right-4 bg-background/80 p-2 rounded flex items-center justify-between text-sm">
-              <div>Plaque détectée: <span className="font-mono font-bold">{currentPlate.plateNumber}</span></div>
-              <div className={`status-badge ${
-                plateStatus === 'valid' ? 'bg-green-500/20 text-green-500' :
-                plateStatus === 'expired' ? 'bg-orange-500/20 text-orange-500' :
-                plateStatus === 'suspended' ? 'bg-red-500/20 text-red-500' :
-                'bg-gray-500/20 text-gray-500'
-              }`}>
-                <span className={`h-2 w-2 rounded-full mr-1 ${
-                  plateStatus === 'valid' ? 'bg-green-500' :
-                  plateStatus === 'expired' ? 'bg-orange-500' :
-                  plateStatus === 'suspended' ? 'bg-red-500' :
-                  'bg-gray-500'
-                }`}></span>
-                {plateStatus === 'valid' ? 'Valide' :
-                 plateStatus === 'expired' ? 'Expirée' :
-                 plateStatus === 'suspended' ? 'Suspendue' : 'Autre'}
-              </div>
+              {currentPlate ? (
+                <>
+                  <div>Plaque détectée: <span className="font-mono font-bold">{currentPlate.plateNumber}</span></div>
+                  <div className={`status-badge ${
+                    plateStatus === 'valid' ? 'bg-green-500/20 text-green-500' :
+                    plateStatus === 'expired' ? 'bg-orange-500/20 text-orange-500' :
+                    plateStatus === 'suspended' ? 'bg-red-500/20 text-red-500' :
+                    'bg-gray-500/20 text-gray-500'
+                  }`}>
+                    <span className={`h-2 w-2 rounded-full mr-1 ${
+                      plateStatus === 'valid' ? 'bg-green-500' :
+                      plateStatus === 'expired' ? 'bg-orange-500' :
+                      plateStatus === 'suspended' ? 'bg-red-500' :
+                      'bg-gray-500'
+                    }`}></span>
+                    {plateStatus === 'valid' ? 'Valide' :
+                     plateStatus === 'expired' ? 'Expirée' :
+                     plateStatus === 'suspended' ? 'Suspendue' : 'Autre'}
+                  </div>
+                </>
+              ) : (
+                <div className="w-full text-center text-muted-foreground">
+                  Aucune plaque détectée. Veuillez pointer la caméra vers une plaque d'immatriculation.
+                </div>
+              )}
             </div>
           )}
         </div>
