@@ -81,10 +81,18 @@ export default function StatusPanel() {
         {currentPlate ? (
           <>
             <div className="flex items-center justify-center mb-4">
-              {/* Current plate display with stylized plate design */}
-              <div className="bg-white text-black w-56 h-14 rounded-lg border-2 border-black flex items-center justify-center relative overflow-hidden">
-                <div className="absolute left-0 top-0 bottom-0 w-10 bg-blue-800"></div>
-                <div className="text-2xl font-bold font-mono ml-6">{currentPlate.plateNumber}</div>
+              {/* Ontario license plate display */}
+              <div className="bg-[#f0f0f0] text-[#003087] w-72 h-20 rounded-md border-2 border-[#666] flex flex-col items-center justify-center relative overflow-hidden">
+                <div className="text-xs text-center absolute top-1 w-full">ONTARIO</div>
+                <div className="text-3xl font-bold tracking-wider leading-none mt-2">
+                  {currentPlate.plateNumber}
+                </div>
+                <div className="text-xs text-center absolute bottom-1 w-full">YOURS TO DISCOVER</div>
+                <div className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 opacity-40">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+                  </svg>
+                </div>
               </div>
             </div>
             

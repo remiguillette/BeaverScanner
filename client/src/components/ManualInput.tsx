@@ -2,10 +2,11 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Search, AlertCircle } from "lucide-react";
 import { usePlateContext } from "@/contexts/PlateContext";
 import { validatePlate } from "@/lib/plate-validator";
 import { apiRequest } from "@/lib/queryClient";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function ManualInput() {
   const [plateNumber, setPlateNumber] = useState("");
@@ -48,7 +49,7 @@ export default function ManualInput() {
           <div className="flex-1">
             <Input 
               type="text" 
-              placeholder="Entrez un numéro de plaque (ex: ABC-123)" 
+              placeholder="Entrez un numéro de plaque (ex: CBPC 344)" 
               className="w-full bg-background border-border/70 focus:ring-2 focus:ring-primary/50 focus:border-transparent"
               value={plateNumber}
               onChange={(e) => setPlateNumber(e.target.value)}
@@ -62,14 +63,25 @@ export default function ManualInput() {
           </div>
         </form>
         
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-2">
+          <Alert variant="default" className="bg-muted/50 border-border mt-2 mb-3">
+            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+            <AlertDescription className="text-xs text-muted-foreground ml-2">
+              {format === 'CA' 
+                ? "Formats acceptés pour l'Ontario: CBPC 344, OPN 4BIZ, GVAH 823" 
+                : "Formats acceptés pour les USA: AB12345, ABC123, etc."}
+            </AlertDescription>
+          </Alert>
+        </div>
+        
+        <div className="mt-2 flex flex-wrap gap-2">
           <Button 
             type="button" 
             variant="outline" 
             className={`px-3 py-1 bg-background border-border rounded-md text-sm hover:bg-border/30 ${format === 'CA' ? 'bg-border/30' : ''}`}
             onClick={() => setFormat('CA')}
           >
-            Format CA 🇨🇦
+            Ontario 🇨🇦
           </Button>
           <Button 
             type="button" 
@@ -77,31 +89,34 @@ export default function ManualInput() {
             className={`px-3 py-1 bg-background border-border rounded-md text-sm hover:bg-border/30 ${format === 'US' ? 'bg-border/30' : ''}`}
             onClick={() => setFormat('US')}
           >
-            Format US 🇺🇸
+            États-Unis 🇺🇸
+          </Button>
+        </div>
+        
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button 
+            type="button" 
+            variant="outline" 
+            className="px-3 py-1 bg-background border-border rounded-md text-sm hover:bg-border/30"
+            onClick={() => { setFormat('CA'); setPlateNumber('CBPC 344') }}
+          >
+            CBPC 344
           </Button>
           <Button 
             type="button" 
             variant="outline" 
             className="px-3 py-1 bg-background border-border rounded-md text-sm hover:bg-border/30"
-            onClick={() => { setFormat('CA'); setPlateNumber('ABC-123') }}
+            onClick={() => { setFormat('CA'); setPlateNumber('OPN 4BIZ') }}
           >
-            Québec
+            OPN 4BIZ
           </Button>
           <Button 
             type="button" 
             variant="outline" 
             className="px-3 py-1 bg-background border-border rounded-md text-sm hover:bg-border/30"
-            onClick={() => { setFormat('CA'); setPlateNumber('ABCD-123') }}
+            onClick={() => { setFormat('CA'); setPlateNumber('GVAH 823') }}
           >
-            Ontario
-          </Button>
-          <Button 
-            type="button" 
-            variant="outline" 
-            className="px-3 py-1 bg-background border-border rounded-md text-sm hover:bg-border/30"
-            onClick={() => { setFormat('CA'); setPlateNumber('AB123C') }}
-          >
-            Colombie-Britannique
+            GVAH 823
           </Button>
         </div>
       </CardContent>

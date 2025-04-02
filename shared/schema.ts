@@ -19,15 +19,15 @@ export const insertLicensePlateSchema = createInsertSchema(licensePlates).omit({
   detectedAt: true
 });
 
-// Validation schema for Canada license plates
+// Validation schema for Canada license plates (optimized for Ontario format)
 export const canadaLicensePlateSchema = z.object({
-  plateNumber: z.string().regex(/^[A-Z0-9]{1,7}(-[A-Z0-9]{1,7})?$/, 
+  plateNumber: z.string().regex(/^[A-Z]{1,4}[ -]?[0-9A-Z]{1,4}$/i, 
     { message: "Format de plaque d'immatriculation canadienne invalide" })
 });
 
 // Validation schema for USA license plates
 export const usaLicensePlateSchema = z.object({
-  plateNumber: z.string().regex(/^[A-Z0-9]{1,8}$/, 
+  plateNumber: z.string().regex(/^[A-Z0-9]{1,8}$/i, 
     { message: "Format de plaque d'immatriculation américaine invalide" })
 });
 

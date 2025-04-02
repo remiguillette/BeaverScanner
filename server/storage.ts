@@ -30,32 +30,32 @@ export class MemStorage implements IStorage {
   private seedInitialData() {
     const initialPlates: InsertLicensePlate[] = [
       {
-        plateNumber: "ABC-123",
-        region: "Québec",
+        plateNumber: "CBPC 344",
+        region: "Ontario",
         status: "valid",
         detectionType: "automatic",
-        details: "Plaque en règle"
+        details: "Plaque en règle - Véhicule standard"
       },
       {
-        plateNumber: "XYZ-789",
+        plateNumber: "OPN 4BIZ",
         region: "Ontario",
         status: "expired",
         detectionType: "manual",
-        details: "La plaque a expiré"
+        details: "La plaque a expiré - Renouvellement requis avant circulation"
       },
       {
-        plateNumber: "DEF-456",
-        region: "New York",
+        plateNumber: "GVAH 823",
+        region: "Ontario",
         status: "suspended",
         detectionType: "automatic",
-        details: "La plaque est suspendue"
+        details: "La plaque est suspendue - Contacter Service Ontario"
       },
       {
-        plateNumber: "GHI-789",
-        region: "Colombie-Britannique",
+        plateNumber: "ABC1234",
+        region: "New York",
         status: "other",
         detectionType: "manual",
-        details: "Information non disponible"
+        details: "Plaque étrangère - Véhicule de tourisme"
       }
     ];
     
