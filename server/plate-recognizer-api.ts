@@ -1,5 +1,7 @@
 import { PlateStatus } from '@shared/schema';
 import fetch from 'node-fetch';
+import FormData from 'form-data';
+import { Buffer } from 'buffer';
 
 // Interface pour les résultats de l'API Plate Recognizer
 interface PlateRecognizerResult {
@@ -61,27 +63,29 @@ export async function recognizePlateWithAPI(imageBase64: string): Promise<{
       throw new Error('Clé API Plate Recognizer non configurée');
     }
     
-    // Construire les paramètres de la requête
+    // Utiliser une approche simple avec l'API file upload de Plate Recognizer
+    // Convertir base64 en buffer pour l'envoyer comme un fichier
+    const imageBuffer = Buffer.from(base64Data, 'base64');
+    
+    // Créer un form-data avec la librairie form-data
+    const formData = new FormData();
+    formData.append('upload', imageBuffer, 'plate.jpg');
+    formData.append('regions', 'fr,ca-on,ca-qc,us');
+    
+    // Configuration pour le mode et seuils de confiance
+    const configObj = {
+      mode: 'fast',
+      detection_mode: 'vehicle'
+    };
+    formData.append('config', JSON.stringify(configObj));
+    
+    // Construire les options de la requête
     const requestOptions = {
       method: 'POST',
       headers: {
-        'Authorization': `Token ${apiKey}`,
-        'Content-Type': 'application/json'
+        'Authorization': `Token ${apiKey}`
       },
-      body: JSON.stringify({
-        image_base64: base64Data,
-        regions: ['fr', 'ca-on', 'ca-qc', 'us'],  // Codes corrects pour France, Ontario, Québec et USA
-        config: {
-          mode: 'fast',
-          detection_mode: 'vehicle',
-          region_config: {
-            'fr': { confidence_threshold: 0.7 },
-            'ca-on': { confidence_threshold: 0.7 },
-            'ca-qc': { confidence_threshold: 0.7 },
-            'us': { confidence_threshold: 0.7 }
-          }
-        }
-      })
+      body: formData
     };
     
     // Envoyer la requête à l'API Plate Recognizer
