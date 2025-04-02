@@ -8,6 +8,13 @@ type PlateData = {
   status: PlateStatus;
   detectedAt: Date;
   details?: string;
+  confidence?: number;
+  boundingBox?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
 };
 
 type PlateContextType = {
@@ -47,7 +54,9 @@ export function PlateProvider({ children }: { children: ReactNode }) {
       region: plateData.region || "",
       status: plateData.status || "valid",
       detectedAt: new Date(),
-      details: plateData.details || ""
+      details: plateData.details || "",
+      confidence: plateData.confidence,
+      boundingBox: plateData.boundingBox
     };
     
     setCurrentPlate(newPlateData);
@@ -57,6 +66,8 @@ export function PlateProvider({ children }: { children: ReactNode }) {
     if (soundEnabled) {
       playSound(newPlateData.status);
     }
+    
+    console.log('Plaque détectée:', newPlateData);
   }, [soundEnabled, updatePlateStatus, playSound]);
   
   const value = {

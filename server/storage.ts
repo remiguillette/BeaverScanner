@@ -77,9 +77,16 @@ export class MemStorage implements IStorage {
     const id = this.currentId++;
     const now = new Date();
     
+    // S'assurer que la région n'est jamais undefined
+    const region = plateData.region || 'Inconnu';
+    
     const plate: LicensePlate = {
       id,
-      ...plateData,
+      plateNumber: plateData.plateNumber,
+      region: region as string | null, // Garantit que region est string | null, jamais undefined
+      status: plateData.status,
+      detectionType: plateData.detectionType,
+      details: plateData.details || null,
       detectedAt: now
     };
     
@@ -116,9 +123,17 @@ export class MemStorage implements IStorage {
       return undefined;
     }
     
+    // S'assurer que la région n'est jamais undefined si elle est fournie
+    const region = data.region || plate.region || 'Inconnu';
+    
     const updatedPlate: LicensePlate = {
       ...plate,
-      ...data
+      plateNumber: data.plateNumber || plate.plateNumber,
+      region: region as string | null,
+      status: data.status || plate.status,
+      detectionType: data.detectionType || plate.detectionType,
+      details: data.details !== undefined ? (data.details || null) : plate.details,
+      detectedAt: plate.detectedAt
     };
     
     this.plates.set(id, updatedPlate);

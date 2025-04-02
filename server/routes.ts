@@ -33,13 +33,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Image data is required" });
       }
       
-      // Utiliser le module de reconnaissance de plaque d'immatriculation
+      console.log("Traitement d'une image pour reconnaissance de plaque avec l'API Plate Recognizer...");
+      
+      // Utiliser le module de reconnaissance de plaque d'immatriculation avec l'API Plate Recognizer
       const recognitionResult = await recognizeLicensePlate(image);
       
       if (!recognitionResult.detected) {
         // Si aucune plaque n'est détectée, renvoyer un objet vide
+        console.log("Aucune plaque détectée dans l'image");
         return res.json({ detected: false });
       }
+      
+      console.log(`Plaque détectée: ${recognitionResult.plateNumber} (${recognitionResult.region}) avec confiance: ${recognitionResult.confidence}`);
       
       // Enregistrer la plaque détectée dans la base de données
       const newPlate = await storage.createLicensePlate({
@@ -55,7 +60,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (client.readyState === WebSocket.OPEN) {
           client.send(JSON.stringify({
             type: "PLATE_DETECTED",
-            data: newPlate
+            data: {
+              ...newPlate,
+              confidence: recognitionResult.confidence,
+              boundingBox: recognitionResult.boundingBox
+            }
           }));
         }
       });
@@ -63,7 +72,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         detected: true,
         ...newPlate,
-        confidence: recognitionResult.confidence
+        confidence: recognitionResult.confidence,
+        boundingBox: recognitionResult.boundingBox
       });
     } catch (error) {
       console.error("Error processing scan:", error);
@@ -76,41 +86,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate request with Zod schema
       const plateData = insertLicensePlateSchema.parse(req.body);
       
+      // Importer les fonctions de validation de l'API
+      const { validatePlateStatus, getStatusDetails } = await import('./plate-recognizer-api');
+      
       // Valider la plaque d'immatriculation saisie manuellement
-      // La logique est similaire à celle dans plate-recognition.ts mais pour les saisies manuelles
       const plateNumber = plateData.plateNumber;
       
-      // Extraire le dernier caractère pour déterminer le statut (pour la démo)
-      const lastChar = plateNumber.charAt(plateNumber.length - 1);
-      const lastDigit = parseInt(lastChar, 10);
+      // Déterminer le statut et les détails
+      const status = validatePlateStatus(plateNumber);
+      const details = getStatusDetails(status);
       
-      let status: string;
-      let details: string;
-      
-      // Utiliser le dernier chiffre pour déterminer le statut (pour la démo seulement)
-      if (isNaN(lastDigit)) {
-        // Si le dernier caractère n'est pas un chiffre
-        status = "other";
-        details = "Information non disponible";
-      } else if (lastDigit >= 7) {
-        status = "valid";
-        details = "Plaque en règle";
-      } else if (lastDigit >= 4) {
-        status = "expired";
-        details = "La plaque a expiré";
-      } else if (lastDigit >= 2) {
-        status = "suspended";
-        details = "La plaque est suspendue";
-      } else {
-        status = "other";
-        details = "Information non disponible";
-      }
+      // S'assurer que la région est toujours définie (non undefined)
+      const region = plateData.region || 'Inconnu';
       
       // Save the validated plate to the database
       const newPlate = await storage.createLicensePlate({
-        ...plateData,
-        status: status as any,
-        details: details
+        plateNumber,
+        region,
+        status,
+        detectionType: plateData.detectionType,
+        details
       });
       
       // Broadcast the validation to all connected WebSocket clients

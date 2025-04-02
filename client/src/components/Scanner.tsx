@@ -13,6 +13,12 @@ import { Progress } from "@/components/ui/progress";
 type ScanResponse = {
   detected: boolean;
   confidence?: number;
+  boundingBox?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
 } & Partial<LicensePlate>;
 
 export default function Scanner() {
@@ -80,9 +86,6 @@ export default function Scanner() {
             // Si une plaque a été détectée, mettre à jour le temps de dernière détection
             if (response && response.detected === true) {
               setLastDetectionTime(Date.now());
-            } else if (response && response.detected === false) {
-              // Si aucune plaque n'est détectée, on peut éventuellement effacer la plaque actuelle
-              // Mais on choisit de laisser la dernière plaque affichée pour l'expérience utilisateur
             }
           } catch (error) {
             console.error("Erreur lors de l'envoi de l'image:", error);
@@ -213,6 +216,35 @@ export default function Scanner() {
           {isScannerActive && (
             <div className="absolute top-16 left-4 bg-background/60 px-2 py-1 rounded text-xs">
               <Info className="h-3 w-3 inline mr-1" /> Images analysées: {scanCount}
+            </div>
+          )}
+          
+          {/* Bounding box overlay */}
+          {isScannerActive && currentPlate && currentPlate.boundingBox && (
+            <div 
+              className={`absolute border-2 ${
+                plateStatus === 'valid' ? 'border-green-500' :
+                plateStatus === 'expired' ? 'border-orange-500' :
+                plateStatus === 'suspended' ? 'border-red-500' :
+                'border-blue-500'
+              } rounded-sm`}
+              style={{
+                left: `${currentPlate.boundingBox.x}px`,
+                top: `${currentPlate.boundingBox.y}px`,
+                width: `${currentPlate.boundingBox.width}px`,
+                height: `${currentPlate.boundingBox.height}px`,
+                transform: 'scale(1)', // Adapté selon la mise à l'échelle de l'image
+                opacity: 0.7
+              }}
+            >
+              <div className={`absolute -top-6 left-0 text-xs px-2 py-1 rounded-t ${
+                plateStatus === 'valid' ? 'bg-green-500' :
+                plateStatus === 'expired' ? 'bg-orange-500' :
+                plateStatus === 'suspended' ? 'bg-red-500' :
+                'bg-blue-500'
+              } text-white`}>
+                {currentPlate.plateNumber}
+              </div>
             </div>
           )}
         </div>
